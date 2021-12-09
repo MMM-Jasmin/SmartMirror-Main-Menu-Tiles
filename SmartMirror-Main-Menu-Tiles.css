@@ -1,0 +1,131 @@
+/************ CENTER SCREEN OVERLAY MENU ************/
+
+/* Menu tiles */
+
+.tile {
+	overflow-x: hidden;
+	position: relative;
+	text-align: center;
+	color: white;
+	border: 2px solid white;
+	border-radius: 20px;
+	z-index: 1;
+}
+
+.tilebackground {
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	width: 0%;
+	height: 100%;
+	background: rgba(250, 250, 250, 0.25);
+	background-clip: padding-box;
+	z-index: -1;
+	animation: tileselection 2.5s linear;
+	-moz-animation: tileselection 2.5s linear; /* Firefox 4 */
+	-webkit-animation: tileselection 2.5s linear; /* Safari and Chrome */
+	-o-animation: tileselection 2.5s linear; /* Opera */
+	-ms-animation: tileselection 2.5s linear; /* Explorer 10 */
+}
+
+@keyframes tileselection {
+	from {
+		width: 0%;
+	}
+	to {
+		width: 100%;
+	}
+}
+
+.tilepulse {
+	-webkit-animation: MMM-voice-pulse 1s infinite;
+	-moz-animation: MMM-voice-pulse 1s infinite;
+	-o-animation: MMM-voice-pulse 1s infinite;
+	animation: MMM-voice-pulse 1s infinite;
+}
+
+@-webkit-keyframes MMM-voice-pulse {
+	0% {
+		color: #999;
+	}
+	50% {
+		color: #000;
+	}
+	100% {
+		color: #999;
+	}
+}
+
+@-webkit-keyframes MMM-voice-pulse {
+	0% {
+		color: #999;
+	}
+	50% {
+		color: #000;
+	}
+	100% {
+		color: #999;
+	}
+}
+
+/* Menu list */
+
+.xLargeMenu {
+	font-size: 70px;
+	line-height: 60px;
+	letter-spacing: -3px;
+	text-align: right;
+	color: #fff;
+}
+
+.table {
+	width: 400px;
+	text-align: right;
+}
+
+.tbody {
+	width: 400px;
+	text-align: right;
+	align: right;
+}
+
+.namecellMainMenu {
+	padding-right: 5px;
+	text-align: right;
+	align: right;
+}
+
+.valuecellMainMenu {
+	padding-left: 3px;
+	align: right;
+	text-align: right;
+}
+
+.pulse {
+	-webkit-animation: MMM-voice-pulse 1s infinite;
+	-moz-animation: MMM-voice-pulse 1s infinite;
+	-o-animation: MMM-voice-pulse 1s infinite;
+	animation: MMM-voice-pulse 1s infinite;
+}
+
+.pulse:after {
+	content: "";
+	background: rgba(250, 250, 250, 0.25);
+	position: absolute;
+	width: 0%;
+	top: 0;
+	left: 0;
+	height: 100%;
+	transition: 2.5s linear;
+	animation: selection 2.5s linear;
+	z-index: -1;
+}
+
+@keyframes selection {
+	from {
+		width: 0%;
+	}
+	to {
+		width: 100%;
+	}
+}
