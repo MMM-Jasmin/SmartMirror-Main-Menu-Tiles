@@ -12,7 +12,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 		menuObj: {
 			main: {
 				camera: { title: "Camera Detections", icon: "fa fa-television" },
-				augmentations: { title: "AI Art Mirror", icon: "fa fa-file" },
+				//augmentations: { title: "AI Art Mirror", icon: "fa fa-file" },
 				utilities: { title: "Utilities", icon: "fa fa-clone" },
 				campus: { title: "Campus Area", icon: "fa fa-university" },
 				entertainment: { title: "Entertainment", icon: "fa fa-star" },
@@ -21,7 +21,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			},
 			camera: {
 				image: { title: "Toggle Camera Image", icon: "fa fa-eye" },
-				distance: { title: "Toggle short distance", icon: "fa fa-compress" },
+				//distance: { title: "Toggle short distance", icon: "fa fa-compress" },
 				face: { title: "Show / Hide Face Detec.", icon: "fa fa-user-circle" },
 				objects: { title: "Show / Hide Object Detec.", icon: "fa fa-coffee" },
 				gesture: { title: "Show / Hide Gesture Rec.", icon: "fa fa-thumbs-up" },
@@ -30,14 +30,14 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 				HIDEALL: { title: "Hide All / Remove All", icon: "fa fa-eye-slash" },
 				back: { title: "Back", icon: "fa fa-undo" },
 			},
-			augmentations: {
+			/*augmentations: {
 				aiartmiror: { title: "Ai-Art-Mirror", icon: "fa fa-image" },
 				randomsytle: { title: "Toggle Styles Automatically", icon: "fa fa-toggle-on" },
 				nextsytle: { title: "Next Style", icon: "fa fa-arrow-right" },
 				prevsytle: { title: "Previous Style", icon: "fa fa-arrow-left" },
 				sourcesytle: { title: "Display Sources", icon: "fa fa-exchange" },
 				back: { title: "Back", icon: "fa fa-undo" },
-			},
+			},*/
 			messevideo: {
 				corlab: { title: "Corlab video", icon: "" },
 				back: { title: "Back", icon: "fa fa-undo" },
@@ -46,7 +46,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 				clock: { title: "Clock", icon: "fa fa-clock-o" },
 				calendar: { title: "Calendar", icon: "fa fa-calendar" },
 				weather: { title: "Current Weather", icon: "fa fa-cloud" },
-				wforecast: { title: "Weather Forecast", icon: "fa fa-line-chart" },
+				//wforecast: { title: "Weather Forecast", icon: "fa fa-line-chart" },
 				bivital: { title: "Vital Data", icon: "fa fa-heartbeat" },
 				speech: { title: "Speech Recogn. Output", icon: "fa fa-comment" },
 				back: { title: "Back", icon: "fa fa-undo" },
