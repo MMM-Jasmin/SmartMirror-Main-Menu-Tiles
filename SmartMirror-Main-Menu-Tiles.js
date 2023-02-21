@@ -99,10 +99,13 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 		tile_width: 300, // Width of tiles
 		tile_height: 200, // Height of tiles
 		font_size: 40, // Font size for tiles
+
+		distanceEnabled: true, // Enable menu selection by right hand distance
 	},
 	menuObjPointer: 0,
 	selectedNum: -1,
 	currentMenuAmount: 1,
+	clickedNum: -1,
 
 	/**
 	 * Requests any additional stylesheets that need to be loaded.
@@ -136,6 +139,11 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 
 		if (this.selectedNum > -1) {
 			var selectedObject = Object.keys(this.menuObjPointer)[this.selectedNum];
+		}
+
+		// WIP: Item flash on click
+		if (this.clickedNum > -1) {
+			var clickedObject = Object.keys(this.menuObjPointer)[this.clickedNum];
 		}
 
 		if (this.config.tiles) {
@@ -179,12 +187,29 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 					td.appendChild(text);
 
 					if (entry == selectedObject) {
-						// Text pulse
-						td.classList.add("tilepulse");
-						// Tile background animation
 						var background = document.createElement("div");
-						background.classList.add("tilebackground");
+						if (this.config.distanceEnabled) {
+							// Distance based menu selection
+							// Tile background
+							background.classList.add("tilebackground_hover");
+						} else {
+							// Time based menu selection
+							// Text pulse
+							td.classList.add("tilepulse");
+							// Tile background animation
+							background.classList.add("tilebackground");
+						}
 						td.appendChild(background);
+					}
+
+					// WIP: Item flash on click
+					// console.debug("clickedObject: " + clickedObject);
+					if (entry == clickedObject) {
+						if (this.config.distanceEnabled) {
+							// Pulse text once
+							td.classList.add("tilepulse_click");
+							//console.debug("clickedObject: " + clickedObject);
+						}
 					}
 
 					tr.appendChild(td);
@@ -354,8 +379,13 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			if (this.selectedNum > -1) {
 				var actionName = Object.keys(this.menuObjPointer)[this.selectedNum];
 				this.sendNotification("MENU_CLICKED", actionName);
+
+				this.clickedNum = this.selectedNum; // WIP: Item flash on select
+
 				this.selectedNum = -1;
 				this.updateDom();
+
+				this.clickedNum = -1; // WIP: Item flash on select
 			}
 		} else if (notification === "MAIN_MENU_SELECT") {
 			this.selectedNum = payload;
