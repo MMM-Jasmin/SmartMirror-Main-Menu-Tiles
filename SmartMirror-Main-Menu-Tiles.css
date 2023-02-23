@@ -12,6 +12,7 @@
 	z-index: 1;
 }
 
+/*
 .tilepulse_click {
 	-webkit-animation: MMM-voice-pulse 1s;
 	-moz-animation: MMM-voice-pulse 1s;
@@ -29,6 +30,7 @@
 	background-clip: padding-box;
 	z-index: -1;
 }
+*/
 
 .tilebackground {
 	position: absolute;
@@ -60,18 +62,6 @@
 	-moz-animation: MMM-voice-pulse 1s infinite;
 	-o-animation: MMM-voice-pulse 1s infinite;
 	animation: MMM-voice-pulse 1s infinite;
-}
-
-@-webkit-keyframes MMM-voice-pulse {
-	0% {
-		color: #999;
-	}
-	50% {
-		color: #000;
-	}
-	100% {
-		color: #999;
-	}
 }
 
 @-webkit-keyframes MMM-voice-pulse {
@@ -147,3 +137,35 @@
 		width: 100%;
 	}
 }
+
+/*
+.tile_flash {
+	overflow-x: hidden;
+	position: relative;
+	text-align: center;
+	color: white;
+	border: 4px solid white;
+	border-radius: 20px;
+	z-index: 1;
+	animation: flash 1s infinite;
+}
+
+.background_flash {
+	background-color: red;
+	color: white;
+	padding: 10px;
+	animation: flash 1s infinite;
+}
+
+@keyframes flash {
+	0% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0;
+	}
+	100% {
+		opacity: 1;
+	}
+}
+*/

@@ -101,11 +101,21 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 		font_size: 40, // Font size for tiles
 
 		distanceEnabled: true, // Enable menu selection by right hand distance
+		distanceButtonPush: 50, // Push distance in mm for virtual button menu selection
+		distanceButtonPushReset: 20, // Hand retracting distance in mm for resetting button push distance
+
+		tileHoverColor: 'rgba(250, 250, 250, 0.25)',
+		tileHoverDistanceColor: 'rgba(250, 250, 250, 0.9)',
+		tileBlinkColor: 'rgba(250, 250, 250, 0.9)',
 	},
 	menuObjPointer: 0,
-	selectedNum: -1,
-	currentMenuAmount: 1,
-	clickedNum: -1,
+	selectedEntryKey: undefined, // Selected menu entry string
+	hoveredEntryKey: undefined, // Current selected menu entry as string (undefined for no selection)
+	hoveredEntryKeyLast: undefined, // Last selected menu entry as string (undefined for no selection)
+	cursorDistance: -1, // Current cursor distance in mm
+	cursorDistancePushStart: -1, // Push starting distance in mm
+	hoveredTile: undefined, // Hovered tile HTML div element
+	animationInProgress: false, // Bool for preventing cursor update if tile animation is still in progress
 
 	/**
 	 * Requests any additional stylesheets that need to be loaded.
@@ -121,6 +131,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	start: function () {
 		Log.info(this.name + " started!");
 		this.menuObjPointer = this.config.menuObj.main;
+		this.selectedEntryKey = "main";
 		this.config.menuObj.user_settings.language.title = "language: " + config.language;
 	},
 
@@ -137,18 +148,8 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			};
 		}
 
-		if (this.selectedNum > -1) {
-			var selectedObject = Object.keys(this.menuObjPointer)[this.selectedNum];
-		}
-
-		// WIP: Item flash on click
-		if (this.clickedNum > -1) {
-			var clickedObject = Object.keys(this.menuObjPointer)[this.clickedNum];
-		}
-
 		if (this.config.tiles) {
 			// Create main menu tiles
-
 			var table = document.createElement("table");
 			table.style.borderSpacing = "10px";
 			var tbody = document.createElement("tbody");
@@ -186,8 +187,11 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 					var text = document.createTextNode(this.menuObjPointer[entry].title);
 					td.appendChild(text);
 
-					if (entry == selectedObject) {
-						var background = document.createElement("div");
+					// Hovered tile background
+					if (entry == this.hoveredEntryKey) {
+						// var background = document.createElement("div");
+						// background.classList.add("background_flash");
+						/*
 						if (this.config.distanceEnabled) {
 							// Distance based menu selection
 							// Tile background
@@ -199,19 +203,10 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 							// Tile background animation
 							background.classList.add("tilebackground");
 						}
-						td.appendChild(background);
+						*/
+						this.hoveredTile = td;
+						// td.appendChild(background);
 					}
-
-					// WIP: Item flash on click
-					// console.debug("clickedObject: " + clickedObject);
-					if (entry == clickedObject) {
-						if (this.config.distanceEnabled) {
-							// Pulse text once
-							td.classList.add("tilepulse_click");
-							//console.debug("clickedObject: " + clickedObject);
-						}
-					}
-
 					tr.appendChild(td);
 				}
 				tbody.appendChild(tr);
@@ -220,7 +215,6 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			wrapper.appendChild(table);
 		} else {
 			// Create main menu list
-
 			var self = this;
 			wrapper.className = "xLargeMenu";
 
@@ -244,7 +238,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 				var span = document.createElement("span");
 				span.innerHTML = `<i class="${this.menuObjPointer[k].icon}" aria-hidden="true"></i>`;
 
-				if (k == selectedObject) {
+				if (k == hoveredObject) {
 					span.classList.add("pulse");
 					namecell.classList.add("pulse");
 				}
@@ -285,6 +279,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	 * Returns the current menu item index for a given position relative to the camera image size.
 	 * @param {Number} posx X coordinate in fraction of camera image width.
 	 * @param {Number} posy Y coordinate in fraction of camera image height.
+	 * @returns {Number} Current menu item index.
 	 */
 	getSelectionIndexForPosition: function (posx, posy) {
 		// Fetch camera image dimensions from element with id camera_image
@@ -304,6 +299,149 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	},
 
 	/**
+	 * Returns the current menu item key string for a given position relative to the camera image size.
+	 * @param {Number} posx X coordinate in fraction of camera image width.
+	 * @param {Number} posy Y coordinate in fraction of camera image height.
+	 * @returns {String} Menu entry key string.
+	 */
+	getMenuEntryForPosition: function (posx, posy) {
+		// Get first element with class menuItem relative to the viewport and return its menu index
+		const elements = document.elementsFromPoint(Math.round(posx * this.config.image_width), Math.round(posy * this.config.image_height));
+		for (var i = 0; i < elements.length; i++) {
+			if (elements[i].classList.contains("menuItem")) {
+				// Set selected menu entry object
+				// var selectedEntryObject = this.menuObjPointer[elements[i].id];
+				var entryKey = elements[i].id;
+				return entryKey;
+			}
+		}
+	},
+
+	/**
+	 * Mark HTML div element as hovered by the cursor.
+	 * @param {HTMLDivElement} htmlElement HTML div element to mark as hovered.
+	 */
+	hoverMenuElement: function (htmlElement) {
+		if (this.animationInProgress) return;
+		const remainingPushDistance = this.cursorDistance - (this.cursorDistancePushStart - this.config.distanceButtonPush);
+		const radialPercent = 100 - Math.floor((remainingPushDistance / this.config.distanceButtonPush) * 100);
+		const radialBackground = `radial-gradient(circle, ${this.config.tileHoverDistanceColor} 0%, ${this.config.tileHoverColor} ${radialPercent}%)`;
+		// console.debug("cursorDistance = " + this.cursorDistance + "\ncursorDistancePushStart = " + this.cursorDistancePushStart + "\nremainingPushDistance = " + remainingPushDistance + "\nradialPercent = " + radialPercent);
+		htmlElement.style.background = radialBackground;
+	},
+
+	/**
+	 * Blink a menu element.
+	 * @param {HTMLDivElement} htmlElement  HTML div element to let blink.
+	 */
+	blinkMenuElement: function(htmlElement) {
+		this.animationInProgress = true;
+		const blinkIntervalDuration = 150; // ms
+		const blinkDuration = 600; // ms
+		// Blink interval
+		const blinkInterval = setInterval(() => {
+			if (htmlElement.style.background == this.config.tileBlinkColor) {
+				htmlElement.style.background = this.config.tileHoverColor;
+			} else {
+				htmlElement.style.background = this.config.tileBlinkColor;
+			}
+		}, blinkIntervalDuration);
+		// Stop blinking after timeout
+		setTimeout(() => {
+			clearInterval(blinkInterval);
+			htmlElement.style.background = this.config.tileHoverColor;
+			this.animationInProgress = false;
+			this.updateDom();
+		}, blinkDuration);
+	},
+
+	/**
+	 * Select a menu entry by the string key identifier.
+	 * @param {String} entryKey Menu entry key string.
+	 */
+	selectMenuEntry: function (entryKey) {
+	if (entryKey == 'back') {
+			this.menuObjPointer = this.config.menuObj.main;
+			this.selectedEntryKey = 'main';
+		} else if (this.selectedEntryKey == 'main') {
+			this.menuObjPointer = this.config.menuObj[entryKey];
+			this.selectedEntryKey = entryKey;
+		} else {
+			// console.debug("Selection: category: " + this.selectedEntryKey + " item: " + entryKey);
+			// Publish menu interaction
+			this.sendNotification("MENU_SELECTED", entryKey);
+			console.debug("MENU_SELECTED: " + entryKey);
+		}
+		// Flash hovered menu tile
+		this.blinkMenuElement(this.hoveredTile);
+
+		// Remove menu hover
+		this.hoveredEntryKey = undefined;
+		this.hoveredEntryKeyLast = undefined;
+	},
+
+	/**
+	 * Update menu by giving new cursor position and distance.
+	 * @param {Float} posx X coordinate in fraction of camera image width.
+	 * @param {Float} posy Y coordinate in fraction of camera image height.
+	 * @param {Int16} distance Distance from the camera in mm.
+	 */
+	updateCursor: function (posx, posy, distance) {
+		if (this.animationInProgress) return;
+		// Set last menu entry
+		this.hoveredEntryKeyLast = this.hoveredEntryKey;
+		// Get menu entry for position
+		this.hoveredEntryKey = this.getMenuEntryForPosition(posx, posy);
+		// Set cursor distance
+		this.cursorDistance = distance;
+
+		// Hovering over entry
+		if (this.hoveredEntryKey) {
+			// Hovering over new entry
+			if (this.hoveredEntryKey != this.hoveredEntryKeyLast) {
+				// console.debug("New hover: " + this.hoveredEntryKey);
+				// Set starting distance for virtual button push
+				this.cursorDistancePushStart = distance;
+				this.updateDom();
+				this.hoverMenuElement(this.hoveredTile);
+			}
+			// Hovering over same valid entry as before
+			else {
+				// Reset starting distance for virtual button push if distance increases
+				// console.debug("cursorDistance = " + this.cursorDistance + "\ncursorDistanceLast = " + this.cursorDistanceLast);
+				if (this.cursorDistance >= (this.cursorDistancePushStart + this.config.distanceButtonPushReset)) {
+						this.cursorDistancePushStart = this.cursorDistance;
+						console.debug("Reset cursorDistancePushStart: " + this.cursorDistancePushStart);
+				}
+				// Check if menu entry is clicked with virtual button
+				var remainingPushDistance = this.cursorDistance - (this.cursorDistancePushStart - this.config.distanceButtonPush);
+				// Selected entry
+				if (this.cursorDistance <= this.cursorDistancePushStart - this.config.distanceButtonPush) {
+					// console.debug("Selected entry key: " + this.hoveredEntryKey);
+					this.selectMenuEntry(this.hoveredEntryKey);
+				}
+				// Still hovering over entry
+				else {
+					// console.debug("remaining distance: " + remainingPushDistance);
+				}
+				this.hoverMenuElement(this.hoveredTile);
+			}
+		}
+		// Not hovering over entry
+		else {
+			// Newly hovering over no entry
+			if (this.hoveredEntryKey != this.hoveredEntryKeyLast) {
+				// console.debug("No hover");
+				this.updateDom();
+			}
+			// Hovering over no menu entry as before
+			else {
+
+			}
+		}
+	},
+
+	/**
 	 * MagicMirror notification handler.
 	 * @param {String} notification The notification identifier as a string.
 	 * @param {AnyType} payload The notification payload.
@@ -311,94 +449,102 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	 */
 	notificationReceived: function (notification, payload, sender) {
 		if (notification === "MAIN_MENU") {
+			var entryKey = payload;
+			if (this.menuObjPointer.hasOwnProperty(entryKey)) {
+				console.debug("MAIN_MENU: " + payload);
+			}
+		}
+		/*
+		if (notification === "MAIN_MENU") {
 			// console.log("[" + this.name + "] " + "received: " + payload);
 			if (payload === "menu") {
 				this.menuObjPointer = this.config.menuObj.main;
 				this.currentMenuAmount = Object.keys(this.menuObjPointer).length;
-				this.selectedNum = -1;
+				this.selectedIndex = -1;
 				this.updateDom();
 			} else if (payload === "camera") {
 				this.menuObjPointer = this.config.menuObj.camera;
 				this.currentMenuAmount = Object.keys(this.menuObjPointer).length;
-				this.selectedNum = -1;
+				this.selectedIndex = -1;
 				this.updateDom();
 			} else if (payload === "augmentations") {
 				this.menuObjPointer = this.config.menuObj.augmentations;
 				this.currentMenuAmount = Object.keys(this.menuObjPointer).length;
-				this.selectedNum = -1;
+				this.selectedIndex = -1;
 				this.updateDom();
 			} else if (payload === "messevideo") {
 				this.menuObjPointer = this.config.menuObj.messevideo;
 				this.currentMenuAmount = Object.keys(this.menuObjPointer).length;
-				this.selectedNum = -1;
+				this.selectedIndex = -1;
 				this.updateDom();
 			} else if (payload === "application") {
 				this.menuObjPointer = this.config.menuObj.application;
 				this.currentMenuAmount = Object.keys(this.menuObjPointer).length;
-				this.selectedNum = -1;
+				this.selectedIndex = -1;
 				this.updateDom();
 			} else if (payload === "utilities") {
 				this.menuObjPointer = this.config.menuObj.utilities;
 				this.currentMenuAmount = Object.keys(this.menuObjPointer).length;
-				this.selectedNum = -1;
+				this.selectedIndex = -1;
 				this.updateDom();
 			} else if (payload === "campus") {
 				this.menuObjPointer = this.config.menuObj.campus;
 				this.currentMenuAmount = Object.keys(this.menuObjPointer).length;
-				this.selectedNum = -1;
+				this.selectedIndex = -1;
 				this.updateDom();
 			} else if (payload === "entertainment") {
 				this.menuObjPointer = this.config.menuObj.entertainment;
 				this.currentMenuAmount = Object.keys(this.menuObjPointer).length;
-				this.selectedNum = -1;
+				this.selectedIndex = -1;
 				this.updateDom();
 			} else if (payload === "smarthome") {
 				this.menuObjPointer = this.config.menuObj.smarthome;
 				this.currentMenuAmount = Object.keys(this.menuObjPointer).length;
-				this.selectedNum = -1;
+				this.selectedIndex = -1;
 				this.updateDom();
 			} else if (payload === "coffee") {
 				this.menuObjPointer = this.config.menuObj.coffee;
 				this.currentMenuAmount = Object.keys(this.menuObjPointer).length;
-				this.selectedNum = -1;
+				this.selectedIndex = -1;
 				this.updateDom();
 			} else if (payload === "preferences") {
 				this.menuObjPointer = this.config.menuObj.preferences;
 				this.currentMenuAmount = Object.keys(this.menuObjPointer).length;
-				this.selectedNum = -1;
+				this.selectedIndex = -1;
 				this.updateDom();
 			} else if (payload === "user_settings") {
 				this.menuObjPointer = this.config.menuObj.user_settings;
 				this.currentMenuAmount = Object.keys(this.menuObjPointer).length;
-				this.selectedNum = -1;
+				this.selectedIndex = -1;
 				this.config.menuObj.user_settings.language.title = "language: " + config.language;
 				this.updateDom();
 			}
 			this.sendNotification("MENU_ITEMS", Object.keys(this.menuObjPointer));
 		} else if (notification === "MAIN_MENU_CLICK_SELECTED") {
-			if (this.selectedNum > -1) {
-				var actionName = Object.keys(this.menuObjPointer)[this.selectedNum];
+			if (this.selectedIndex > -1) {
+				var actionName = Object.keys(this.menuObjPointer)[this.selectedIndex];
 				this.sendNotification("MENU_CLICKED", actionName);
 
-				this.clickedNum = this.selectedNum; // WIP: Item flash on select
+				// this.clickedIndex = this.selectedIndex; // WIP: Item flash on select
 
-				this.selectedNum = -1;
+				this.selectedIndex = -1;
 				this.updateDom();
 
-				this.clickedNum = -1; // WIP: Item flash on select
+				// this.clickedIndex = -1; // WIP: Item flash on select
 			}
 		} else if (notification === "MAIN_MENU_SELECT") {
-			this.selectedNum = payload;
+			this.selectedIndex = payload;
 			this.updateDom();
-			console.log(this.name + "selected item is now: " + this.selectedNum);
+			console.log(this.name + "selected item is now: " + this.selectedIndex);
 		} else if (notification === "MAIN_MENU_UP") {
-			this.selectedNum = this.selectedNum - 1;
-			if (this.selectedNum < 0) this.selectedNum = this.currentMenuAmount - 1;
+			this.selectedIndex = this.selectedIndex - 1;
+			if (this.selectedIndex < 0) this.selectedIndex = this.currentMenuAmount - 1;
 			this.updateDom();
 		} else if (notification === "MAIN_MENU_DOWN") {
-			this.selectedNum = this.selectedNum + 1;
-			if (this.selectedNum == this.currentMenuAmount) this.selectedNum = 0;
+			this.selectedIndex = this.selectedIndex + 1;
+			if (this.selectedIndex == this.currentMenuAmount) this.selectedIndex = 0;
 			this.updateDom();
 		}
+		*/
 	},
 });
