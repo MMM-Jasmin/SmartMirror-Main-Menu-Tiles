@@ -310,12 +310,15 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	hoverMenuElement: function (htmlElement) {
 		if (this.animationInProgress) return;
 		const remainingPushDistance = this.cursorDistance - (this.cursorDistancePushStart - this.config.distanceButtonPush);
-		const remainingPushDistancePercent = 100 - Math.floor((remainingPushDistance / this.config.distanceButtonPush) * 100);
+		const gradientWidth = 10;
+		const pushDistancePercent = 100 - Math.floor((remainingPushDistance / this.config.distanceButtonPush) * (100 + gradientWidth));
 		var background;
 		if (this.config.tileHoverDistanceFeedback === 'bar') {
-			background = `linear-gradient(0deg, ${this.config.tileHoverDistanceColor} 0 0%, ${this.config.tileHoverColor} ${remainingPushDistancePercent}% 100%)`;
-		} else if (this.config.tileHoverDistanceFeedback === 'radial') {
-			background = `radial-gradient(circle, ${this.config.tileHoverDistanceColor} 0%, ${this.config.tileHoverColor} ${remainingPushDistancePercent}%)`;
+			// background = `linear-gradient(0deg, ${this.config.tileHoverDistanceColor} 0 0%, ${this.config.tileHoverColor} ${pushDistancePercent}% 100%)`;
+			background = `linear-gradient(to top, ${this.config.tileHoverDistanceColor} ${pushDistancePercent}%, ${this.config.tileHoverColor} ${pushDistancePercent + gradientWidth}%)`;
+		} else if (this.config.tileHoverDistanceFeedback === 'raidal') {
+			// background = `radial-gradient(circle, ${this.config.tileHoverDistanceColor} 0%, ${this.config.tileHoverColor} ${pushDistancePercent}%)`;
+			background = `radial-gradient(circle, ${this.config.tileHoverDistanceColor} ${pushDistancePercent}%, ${this.config.tileHoverColor} ${pushDistancePercent + 10}%)`;
 		}
 		htmlElement.style.background = background;
 	},
