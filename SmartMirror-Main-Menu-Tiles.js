@@ -20,33 +20,20 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 				preferences: { title: "Preferences", icon: "fa fa-cogs" },
 			},
 			camera: {
-				image: { title: "Toggle Camera Image", icon: "fa fa-eye" },
-				//distance: { title: "Toggle short distance", icon: "fa fa-compress" },
-				face: { title: "Show / Hide Face Detec.", icon: "fa fa-user-circle" },
-				objects: { title: "Show / Hide Object Detec.", icon: "fa fa-coffee" },
-				gesture: { title: "Show / Hide Gesture Rec.", icon: "fa fa-thumbs-up" },
-				SHOWALL: { title: "Show all Detections", icon: "fa fa-eye" },
-				person: { title: "Show Person Recognition", icon: "fa fa-users" },
-				HIDEALL: { title: "Hide All / Remove All", icon: "fa fa-eye-slash" },
-				back: { title: "Back", icon: "fa fa-undo" },
-			},
-			/*augmentations: {
-				aiartmiror: { title: "Ai-Art-Mirror", icon: "fa fa-image" },
-				randomsytle: { title: "Toggle Styles Automatically", icon: "fa fa-toggle-on" },
-				nextsytle: { title: "Next Style", icon: "fa fa-arrow-right" },
-				prevsytle: { title: "Previous Style", icon: "fa fa-arrow-left" },
-				sourcesytle: { title: "Display Sources", icon: "fa fa-exchange" },
-				back: { title: "Back", icon: "fa fa-undo" },
-			},*/
-			messevideo: {
-				corlab: { title: "Corlab video", icon: "" },
+				//image: { title: "Toggle Camera Image", icon: "fa fa-eye" },
+				distance: { title: "Toggle short distance", icon: "fa fa-compress", topic: "/websocket/sel", message: "TOGGLE" },
+				face: { title: "Show / Hide Face Detec.", icon: "fa fa-user-circle", topic: "LABEL_DISPLAY", message: "FACE" },
+				objects: { title: "Show / Hide Object Detec.", icon: "fa fa-coffee", topic: "LABEL_DISPLAY", message: "OBJECT" },
+				gesture: { title: "Show / Hide Gesture Rec.", icon: "fa fa-thumbs-up", topic: "LABEL_DISPLAY", message: "GESTURE" },
+				SHOWALL: { title: "Show all Detections", icon: "fa fa-eye", topic: "LABEL_DISPLAY", message: "SHOWALL" },
+				//person: { title: "Show Person Recognition", icon: "fa fa-users" },
+				HIDEALL: { title: "Hide All / Remove All", icon: "fa fa-eye-slash" , topic: "LABEL_DISPLAY", message: "HIDEALL" },
 				back: { title: "Back", icon: "fa fa-undo" },
 			},
 			utilities: {
 				clock: { title: "Clock", icon: "fa fa-clock-o" },
 				calendar: { title: "Calendar", icon: "fa fa-calendar" },
 				weather: { title: "Current Weather", icon: "fa fa-cloud" },
-				//wforecast: { title: "Weather Forecast", icon: "fa fa-line-chart" },
 				bivital: { title: "Vital Data", icon: "fa fa-heartbeat" },
 				speech: { title: "Speech Recogn. Output", icon: "fa fa-comment" },
 				back: { title: "Back", icon: "fa fa-undo" },
@@ -360,9 +347,17 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			this.menuObjPointer = this.config.menuObj[entryKey];
 			this.selectedEntryKey = entryKey;
 		} else {
+
+			//console.log(entryKey)
+			//console.log(this.menuObjPointer[entryKey])
+
+			if (this.menuObjPointer[entryKey].hasOwnProperty("topic") && this.menuObjPointer[entryKey].hasOwnProperty("message")) {
+				this.sendNotification(this.menuObjPointer[entryKey]["topic"], this.menuObjPointer[entryKey]["message"]);
+				//console.log(this.menuObjPointer[entryKey]["topic"], this.menuObjPointer[entryKey]["message"]);
+			}
 			// Publish menu interaction
 			this.sendNotification("MENU_SELECTED", entryKey);
-			console.debug("MENU_SELECTED: " + entryKey);
+			//console.debug("MENU_SELECTED: " + entryKey);
 		}
 		// Flash hovered menu tile
 		this.blinkMenuElement(this.hoveredTile);
