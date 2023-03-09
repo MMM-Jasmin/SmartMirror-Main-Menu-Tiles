@@ -21,7 +21,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			},
 			camera: {
 				//image: { title: "Toggle Camera Image", icon: "fa fa-eye" },
-				distance: { title: "Toggle short distance", icon: "fa fa-compress", topic: "/websocket/sel", message: "TOGGLE" },
+				distance: {	title: "Toggle short distance", icon: "fa fa-compress", topic: "/websocket/sel", message: "TOGGLE" },
 				face: { title: "Show / Hide Face Detec.", icon: "fa fa-user-circle", topic: "LABEL_DISPLAY", message: "FACE" },
 				objects: { title: "Show / Hide Object Detec.", icon: "fa fa-coffee", topic: "LABEL_DISPLAY", message: "OBJECT" },
 				gesture: { title: "Show / Hide Gesture Rec.", icon: "fa fa-thumbs-up", topic: "LABEL_DISPLAY", message: "GESTURE" },
@@ -39,8 +39,9 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 				back: { title: "Back", icon: "fa fa-undo" },
 			},
 			campus: {
+				//mensa: { title: "Mensa Offer", icon: "fa fa-cutlery" },
+				//canteen: { title: "Westend Canteen", icon: "fa fa-apple" },
 				mensa: { title: "Mensa Offer", icon: "fa fa-cutlery" },
-				canteen: { title: "Westend Canteen", icon: "fa fa-apple" },
 				transportation: { title: "Public Transportation", icon: "fa fa-bus" },
 				traffic: { title: "Traffic Load", icon: "fa fa-car" },
 				fuel: { title: "Fuel Prices", icon: "fa fa-tint" },
@@ -49,7 +50,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			entertainment: {
 				crypto: { title: "Crypto Stock Values", icon: "fa fa-bitcoin" },
 				newsfeed: { title: "Heise Newsfeed", icon: "fa fa-rss-square" },
-				news: { title: "News", icon: "fa fa-newspaper-o" },
+				//news: { title: "News", icon: "fa fa-newspaper-o" },
 				comic: { title: "Daily Comic", icon: "fa fa-columns" },
 				soccer: { title: "Soccer Results", icon: "fa fa-circle" },
 				dota2: { title: "Dota2 Esports", icon: "fa fa-trophy" },
@@ -71,6 +72,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			preferences: {
 				user: { title: "Addjust user settings", icon: "fa fa-user" },
 				face: { title: "Face recognition settings", icon: "fa fa-user-circle" },
+				Decision_maker:{title: "Show debug Info", icon: "fa fa-list" },
 				back: { title: "Back", icon: "fa fa-undo" },
 			},
 			user_settings: {
@@ -135,97 +137,54 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			};
 		}
 
-		if (this.config.tiles) {
-			// Create main menu tiles
-			var table = document.createElement("table");
-			table.style.borderSpacing = "10px";
-			var tbody = document.createElement("tbody");
+		var table = document.createElement("table");
+		table.style.borderSpacing = "10px";
+		var tbody = document.createElement("tbody");
 
-			const entries = Object.keys(this.menuObjPointer);
+		const entries = Object.keys(this.menuObjPointer);
 
-			const numCols = this.config.columns;
-			const numRows = Math.ceil(entries.length / numCols);
+		const numCols = this.config.columns;
+		const numRows = Math.ceil(entries.length / numCols);
 
-			for (var row = 0; row < numRows; row++) {
-				var tr = document.createElement("tr");
-				for (var col = 0; col < numCols; col++) {
-					const idx = row * numCols + col;
-					if (idx >= entries.length) break;
-					const entry = entries[idx];
+		for (var row = 0; row < numRows; row++) {
+			var tr = document.createElement("tr");
+			for (var col = 0; col < numCols; col++) {
+				const idx = row * numCols + col;
+				if (idx >= entries.length) break;
+				const entry = entries[idx];
 
-					// Create tile
-					var td = document.createElement("td");
-					td.id = entry;
-					td.classList.add("tile");
-					td.classList.add("menuItem");
-					td.onclick = makeOnClickHandler(entry);
-					td.style.width = this.config.tile_width + "px";
-					td.style.minWidth = this.config.tile_width + "px";
-					td.style.height = this.config.tile_height + "px";
-					td.style.fontSize = this.config.font_size + "px";
+				// Create tile
+				var td = document.createElement("td");
+				td.id = entry;
+				td.classList.add("tile");
+				td.classList.add("menuItem");
+				td.onclick = makeOnClickHandler(entry);
+				td.style.width = this.config.tile_width + "px";
+				td.style.minWidth = this.config.tile_width + "px";
+				td.style.height = this.config.tile_height + "px";
+				td.style.fontSize = this.config.font_size + "px";
 
-					// Add icon
-					var icon = document.createElement("span");
-					icon.className = this.menuObjPointer[entry].icon;
-					td.appendChild(icon);
-					td.appendChild(document.createElement("br"));
+				// Add icon
+				var icon = document.createElement("span");
+				icon.className = this.menuObjPointer[entry].icon;
+				td.appendChild(icon);
+				td.appendChild(document.createElement("br"));
 
-					// Add text
-					var text = document.createTextNode(this.menuObjPointer[entry].title);
-					td.appendChild(text);
+				// Add text
+				var text = document.createTextNode(this.menuObjPointer[entry].title);
+				td.appendChild(text);
 
-					// Hovered tile element handle
-					if (entry == this.hoveredEntryKey) {
-						this.hoveredTile = td;
-					}
-					tr.appendChild(td);
+				// Hovered tile element handle
+				if (entry == this.hoveredEntryKey) {
+					this.hoveredTile = td;
 				}
-				tbody.appendChild(tr);
+				tr.appendChild(td);
 			}
-			table.appendChild(tbody);
-			wrapper.appendChild(table);
-		} else {
-			// Create main menu list (deprecated)
-			var self = this;
-			wrapper.className = "xLargeMenu";
-
-			var table = document.createElement("table");
-			var tbody = document.createElement("tbody");
-
-			table.className = "table";
-			table.className = "tbody";
-
-			Object.keys(this.menuObjPointer).forEach((k) => {
-				var row = document.createElement("tr");
-				var namecell = document.createElement("namecellMainMenu");
-				var cellText = document.createTextNode(this.menuObjPointer[k].title + " ");
-				namecell.appendChild(cellText);
-				namecell.className = "valuecellMainMenu";
-				namecell.classList.add("menuItem");
-				namecell.id = k;
-				namecell.onclick = makeOnClickHandler(k);
-				row.appendChild(namecell);
-
-				var span = document.createElement("span");
-				span.innerHTML = `<i class="${this.menuObjPointer[k].icon}" aria-hidden="true"></i>`;
-
-				if (k == hoveredObject) {
-					span.classList.add("pulse");
-					namecell.classList.add("pulse");
-				}
-
-				span.onclick = makeOnClickHandler(k);
-				span.classList.add("menuItem");
-				span.id = k;
-
-				row.appendChild(span);
-				row.className = "tablerow";
-				tbody.appendChild(row);
-			});
-
-			table.appendChild(tbody);
-			wrapper.appendChild(table);
+			tbody.appendChild(tr);
 		}
+		table.appendChild(tbody);
+		wrapper.appendChild(table);
+
 		return wrapper;
 	},
 
@@ -432,12 +391,14 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	 * @param {AnyType} payload The notification payload.
 	 * @param {Module} sender The identification of the notification sender.
 	 */
-	notificationReceived: function (notification, payload, sender) {
-		if (notification === "MAIN_MENU") {
-			var entryKey = payload;
-			if (this.menuObjPointer.hasOwnProperty(entryKey)) {
-				console.debug("MAIN_MENU: " + payload);
-			}
+	notificationReceived: function (notification, payload, sender) {	
+		if ((notification === "MAIN_MENU") && (payload === "reset")) {
+			this.menuObjPointer = this.config.menuObj.main;
+			this.selectedEntryKey = 'main';
+			// Remove menu hover
+			this.hoveredEntryKey = undefined;
+			this.hoveredEntryKeyLast = undefined;
+			this.updateDom();
 		}
 	},
 });
