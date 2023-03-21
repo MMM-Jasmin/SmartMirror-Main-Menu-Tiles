@@ -18,6 +18,8 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 				entertainment: { title: "Entertainment", icon: "fa fa-star" },
 				smarthome: { title: "Smart Home", icon: "fa fa-home" },
 				preferences: { title: "Preferences", icon: "fa fa-cogs" },
+				// Example of a menu entry which shows a radial menu for integer user input and sends result as string to the given topic
+				// inputexample: { title: "Input Example", icon: "fa fa-wrench", input: { topic: "SHOW_ALERT", min: 0, max: 100, steps: 8 } },
 			},
 			camera: {
 				//image: { title: "Toggle Camera Image", icon: "fa fa-eye" },
@@ -93,9 +95,6 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 		distanceButtonPushReset: 20, // Hand retracting distance in mm for resetting button push distance
 
 		tileHoverDistanceFeedback: 'bar', // Type of hover distance feedback: 'bar' or 'radial'
-		tileHoverColor: 'rgba(250, 250, 250, 0.25)', // Color of hovered tile
-		tileHoverDistanceColor: 'rgba(250, 250, 250, 0.9)', // Color of distance feedback
-		tileBlinkColor: 'rgba(250, 250, 250, 0.9)', // Color of selected tile blink feedback
 	},
 	menuObjPointer: 0, // Pointer to the current menu object
 	selectedEntryKey: undefined, // Selected menu entry string
@@ -103,8 +102,32 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	hoveredEntryKeyLast: undefined, // Last selected menu entry as string (undefined for no selection)
 	cursorDistance: -1, // Current cursor distance in mm
 	cursorDistancePushStart: -1, // Push starting distance in mm
-	hoveredTile: undefined, // Hovered tile HTML div element
+	hoveredEntry: undefined, // Hovered menu HTML element
 	animationInProgress: false, // Bool for preventing cursor update if tile animation is still in progress
+
+	// Colors
+	menuColor: 'rgb(0, 0, 0)', // Menu element color
+	hoverColor: 'rgb(63, 63, 63)', // Color of hovered element
+	hoverDistanceColor: 'rgb(230, 230, 230)', // Color of distance feedback
+	blinkColor: 'rgb(230, 230, 230)', // Color of selected element blink feedback
+	// Constants
+	gradientWidth: 10, // Width of background gradient transition
+	radialMenuInnerRadius: 30, // Inner radius of radial menu
+	radialMenuRadius: 150, // Outer radius of radial menu
+	radialMenuLineWidth: 4, // Radial menu stroke width
+	radialMenuNumEntries: 8, // Number of radial menu items
+	radialMenuValueMin: 10, // Minimum value of radial menu input
+	radialMenuValueMax: 100, // Maximum value of radial menu input
+	// Global variables
+	wrapper: undefined, // Handle for HTML wrapper object
+	radialMenuShown: false, // Bool for usage of the radial menu
+	cursorPosX: undefined, // Current X coordinate of cursor
+	cursorPosY: undefined, // Current Y coordinate of cursor
+	radialMenuPosX: undefined, // Current X coordinate of radial menu
+	radialMenuPosY: undefined, // Current Y coordinate of radial menu
+	radialMenuIndex: undefined, // Current radial menu item index
+	radialMenuValue: undefined, // Current radial menu item value
+	radialMenuParent: undefined, // Parent element which called radial menu
 
 	/**
 	 * Requests any additional stylesheets that need to be loaded.
@@ -130,6 +153,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	 */
 	getDom() {
 		var wrapper = document.createElement("div");
+		wrapper.id = 'wrapper';
 
 		function makeOnClickHandler(a) {
 			return function () {
@@ -176,7 +200,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 
 				// Hovered tile element handle
 				if (entry == this.hoveredEntryKey) {
-					this.hoveredTile = td;
+					this.hoveredEntry = td;
 				}
 				tr.appendChild(td);
 			}
@@ -185,6 +209,92 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 		table.appendChild(tbody);
 		wrapper.appendChild(table);
 
+		if (this.radialMenuShown) {
+			// Develop radial context menu
+			var radialMenu = document.createElement("div");
+			const radialMenuDiameter = this.radialMenuRadius * 2;
+			const radialMenuWidth = radialMenuDiameter + this.radialMenuLineWidth;
+			const radialMenuHeight = radialMenuWidth;
+			const radialMenuTop = this.radialMenuPosY - this.radialMenuRadius - (this.radialMenuLineWidth / 2);
+			const radialMenuLeft = this.radialMenuPosX - this.radialMenuRadius - (this.radialMenuLineWidth / 2);
+			radialMenu.style.position = 'absolute';
+			radialMenu.style.zIndex = '10';
+			radialMenu.style.top = `${radialMenuTop}px`;
+			radialMenu.style.left = `${radialMenuLeft}px`;
+			radialMenu.style.width = `${radialMenuWidth}px`;
+			radialMenu.style.height = `${radialMenuHeight}px`;
+			// radialMenu.style.borderStyle = "dashed";
+			// radialMenu.style.borderWidth = `${this.radialMenuLineWidth}px`;
+			// radialMenu.style.borderColor = "lightgray";
+			radialMenu.id = "radialMenuCenter";
+			radialMenu.classList.add('menuItem');
+			const svgns = "http://www.w3.org/2000/svg";
+			var radialSvg = document.createElementNS(svgns, 'svg');
+			radialSvg.id = "radialSvg";
+			radialSvg.classList.add('radialMenuCenter');
+			// radialSvg.style.borderStyle = "dashed";
+			// radialSvg.style.borderWidth = `${this.radialMenuLineWidth}px`;
+			// radialSvg.style.borderColor = "blue";
+			// radialSvg.style.background = "blue"
+			radialSvg.style.width = `${radialMenuWidth}px`;
+			radialSvg.style.height = `${radialMenuHeight}px`;
+			// Make SVG element circle shaped
+			radialSvg.style.borderRadius = '50%';
+			// Make SVG element circle opaque in the middle
+			// radialSvg.style.background = `radial-gradient(circle, black ${this.radialMenuInnerRadius}px, ${this.hoverDistanceColor} ${this.radialMenuInnerRadius}px, ${this.hoverDistanceColor} ${pushDistancePixel}px, ${this.hoverColor} ${pushDistancePixel + this.gradientWidth}px)`;
+			radialSvg.style.background = this.menuColor;
+			// radialSvg.viewBox = "0 0 200 200";
+
+			const numSectors = this.radialMenuNumEntries; // Number of circle sectors
+			const cx = this.radialMenuRadius + this.radialMenuLineWidth / 2; // Center point x coordinate of the circle sector
+			const cy = cx; // Center point y coordinate of the circle sector
+			const innerRadius = this.radialMenuInnerRadius; // Inner radius of the circle sector
+			const outerRadius = this.radialMenuRadius; // Outer radius of the circle sector
+			const sectorAngle = 360 / numSectors;
+			for (var secIdx = 0; secIdx < numSectors; secIdx++) {
+				const startAngle = (sectorAngle * secIdx + 270) % 360;
+				const endAngle = startAngle + sectorAngle;
+				const secId = `radialMenuItem-${secIdx}`; // HTML element id
+				// Draw circle sector path
+				var path = this.drawCircleSectorPath(secId, cx, cy, innerRadius, outerRadius, startAngle, endAngle);
+				// Set the other attributes of the path element, such as the stroke and fill colors
+				path.setAttribute('stroke', 'white');
+				path.setAttribute('stroke-width', `${this.radialMenuLineWidth}`);
+				// path.setAttribute('fill', 'yellow');
+				path.classList.add('menuItem');
+				path.classList.add('radialMenuItem');
+				// Append circle sector path to svg element
+				radialSvg.appendChild(path);
+
+				// Hovered element handle
+				if (path.id == this.hoveredEntryKey) {
+					this.hoveredEntry = path;
+				}
+			}
+			// Print text at center of the circle
+			// Create a new text element for the number
+			const radialText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+			// Set the attributes of the text element
+			radialText.setAttribute('x', cx);
+			radialText.setAttribute('y', cy);
+			radialText.setAttribute('text-anchor', 'middle');
+			radialText.setAttribute('dominant-baseline', 'central');
+			radialText.setAttribute('font-size', '20');
+			radialText.setAttribute('fill', 'white');
+			// Set the text content of the text element to the number you want to display
+			if (this.radialMenuValue != undefined) {
+				// const number = 42;
+				const number = this.radialMenuValue;
+				radialText.textContent = number.toString();
+			}
+			// Add the text element to the SVG element
+			radialSvg.appendChild(radialText);
+
+			radialMenu.appendChild(radialSvg);
+			wrapper.appendChild(radialMenu);
+		}
+
+		this.wrapper = wrapper;
 		return wrapper;
 	},
 
@@ -241,9 +351,13 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 		// Get first element with class menuItem relative to the viewport and return its menu index
 		const elements = document.elementsFromPoint(Math.round(posx * imageWidth), Math.round(posy * imageHeight));
 		for (var i = 0; i < elements.length; i++) {
+			// console.debug("html elements: ", i)
+			// console.debug("html element id: ", elements[i].id)
 			if (elements[i].classList.contains("menuItem")) {
 				// Set selected menu entry object
 				var entryKey = elements[i].id;
+				// console.debug("entryKey = ", entryKey)
+
 				return entryKey;
 			}
 		}
@@ -256,16 +370,27 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	hoverMenuElement: function (htmlElement) {
 		if (this.animationInProgress) return;
 		const remainingPushDistance = this.cursorDistance - (this.cursorDistancePushStart - this.config.distanceButtonPush);
-		const gradientWidth = 10;
+		const gradientWidth = this.gradientWidth;
 		const pushDistancePercent = 100 - Math.floor((remainingPushDistance / this.config.distanceButtonPush) * (100 + gradientWidth));
 		var background;
-		if (this.config.tileHoverDistanceFeedback === 'bar') {
-			// background = `linear-gradient(0deg, ${this.config.tileHoverDistanceColor} 0 0%, ${this.config.tileHoverColor} ${pushDistancePercent}% 100%)`;
-			background = `linear-gradient(to top, ${this.config.tileHoverDistanceColor} ${pushDistancePercent}%, ${this.config.tileHoverColor} ${pushDistancePercent + gradientWidth}%)`;
-		} else if (this.config.tileHoverDistanceFeedback === 'raidal') {
-			// background = `radial-gradient(circle, ${this.config.tileHoverDistanceColor} 0%, ${this.config.tileHoverColor} ${pushDistancePercent}%)`;
-			background = `radial-gradient(circle, ${this.config.tileHoverDistanceColor} ${pushDistancePercent}%, ${this.config.tileHoverColor} ${pushDistancePercent + 10}%)`;
+
+		if (htmlElement.nodeName === 'path') {
+				pushDistancePixel = Math.floor(this.radialMenuInnerRadius + (this.radialMenuRadius - this.radialMenuInnerRadius) * (pushDistancePercent / 100));
+			background = `radial-gradient(circle, ${this.menuColor} ${this.radialMenuInnerRadius}px, ${this.hoverDistanceColor} ${this.radialMenuInnerRadius}px, ${this.hoverDistanceColor} ${pushDistancePixel}px, ${this.hoverColor} ${pushDistancePixel + this.gradientWidth}px)`;
+			// htmlElement.parentElement.style.borderRadius = '50%'; // Make SVG element circle shaped
+			htmlElement.parentElement.style.background = background;
+			htmlElement.setAttribute('fill', 'transparent');
+			return;
 		}
+
+		if (this.config.tileHoverDistanceFeedback === 'bar') {
+			// background = `linear-gradient(0deg, ${this.hoverDistanceColor} 0 0%, ${this.hoverColor} ${pushDistancePercent}% 100%)`;
+			background = `linear-gradient(to top, ${this.hoverDistanceColor} ${pushDistancePercent}%, ${this.hoverColor} ${pushDistancePercent + gradientWidth}%)`;
+		} else if (this.config.tileHoverDistanceFeedback === 'raidal') {
+			// background = `radial-gradient(circle, ${this.hoverDistanceColor} 0%, ${this.hoverColor} ${pushDistancePercent}%)`;
+			background = `radial-gradient(circle, ${this.hoverDistanceColor} ${pushDistancePercent}%, ${this.hoverColor} ${pushDistancePercent + 10}%)`;
+		}
+
 		htmlElement.style.background = background;
 	},
 
@@ -274,21 +399,27 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	 * @param {HTMLDivElement} htmlElement  HTML div element to let blink.
 	 */
 	blinkMenuElement: function(htmlElement) {
+		// Use SVG element for radial menu blink
+		if (htmlElement.classList.contains('radialMenuItem')) {
+			htmlElement = htmlElement.parentElement;
+		}
+
+		// console.debug("blinkMenuElement");
 		this.animationInProgress = true;
 		const blinkIntervalDuration = 150; // ms
 		const blinkDuration = 600; // ms
 		// Blink interval
 		const blinkInterval = setInterval(() => {
-			if (htmlElement.style.background == this.config.tileBlinkColor) {
-				htmlElement.style.background = this.config.tileHoverColor;
+			if (htmlElement.style.background === this.blinkColor) {
+				htmlElement.style.background = this.hoverColor;
 			} else {
-				htmlElement.style.background = this.config.tileBlinkColor;
+				htmlElement.style.background = this.blinkColor;
 			}
 		}, blinkIntervalDuration);
 		// Stop blinking after timeout
 		setTimeout(() => {
 			clearInterval(blinkInterval);
-			htmlElement.style.background = this.config.tileHoverColor;
+			htmlElement.style.background = this.hoverColor;
 			this.animationInProgress = false;
 			this.updateDom();
 		}, blinkDuration);
@@ -299,27 +430,72 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	 * @param {String} entryKey Menu entry key string.
 	 */
 	selectMenuEntry: function (entryKey) {
-	if (entryKey == 'back') {
+		// console.debug("this.menuObjPointer.id = ", this.menuObjPointer.id);
+		if (this.menuObjPointer.hasOwnProperty(entryKey)) {
+			// Input menu element selected
+			if (this.menuObjPointer[entryKey].hasOwnProperty("input")) {
+				// Show radial input menu
+				if ((!this.radialMenuShown) && (!this.radialMenuPoxX) && (!this.radialMenuPoxY)) {
+					// Set radial menu parent which called for the input menu
+					this.radialMenuParent = this.menuObjPointer[entryKey];
+					// Set radial menu min, max values and number of items
+					this.radialMenuValueMin = this.radialMenuParent['input']['min'];
+					this.radialMenuValueMax = this.radialMenuParent['input']['max'];
+					this.radialMenuNumEntries = this.radialMenuParent['input']['steps'];
+					const wrapperRect = this.wrapper.getBoundingClientRect();
+					// console.debug("wrapperRect: top: ", wrapperRect.top, " left: ", wrapperRect.left);
+					this.radialMenuPosX = this.cursorPosX - wrapperRect.left;
+					this.radialMenuPosY = this.cursorPosY - wrapperRect.top;
+					this.radialMenuShown = true;
+				}
+				this.blinkMenuElement(this.hoveredEntry);
+				return;
+			}
+		} else {
+			// console.debug("Unknown selection entry key: ", entryKey);
+		}
+
+		// Radial menu entry selected
+		if (entryKey.startsWith('radialMenuItem')) {
+			// console.debug("Selected radial entry: ", entryKey, " value: ", this.radialMenuValue);
+			const inputTopic = this.radialMenuParent['input']['topic'];
+			const inputValue = this.radialMenuValue.toString();
+			// console.debug("send input: topic: ", inputTopic, " value:", inputValue);
+			if (inputTopic === 'SHOW_ALERT') {
+				this.sendNotification(inputTopic, {type: "notification", title: "Input value: ", message: inputValue});
+			} else {
+				this.sendNotification(inputTopic, inputValue);
+			}
+
+			// Flash hovered menu item
+			this.blinkMenuElement(this.hoveredEntry);
+
+			// Remove menu hover
+			this.hoveredEntryKey = undefined;
+			this.hoveredEntryKeyLast = undefined;
+			this.radialMenuShown = false;
+			return;
+		}
+
+		if (entryKey == 'back') {
 			this.menuObjPointer = this.config.menuObj.main;
 			this.selectedEntryKey = 'main';
 		} else if (this.selectedEntryKey == 'main') {
 			this.menuObjPointer = this.config.menuObj[entryKey];
 			this.selectedEntryKey = entryKey;
 		} else {
-
-			//console.log(entryKey)
-			//console.log(this.menuObjPointer[entryKey])
-
+			//console.debug(entryKey)
+			//console.debug(this.menuObjPointer[entryKey])
 			if (this.menuObjPointer[entryKey].hasOwnProperty("topic") && this.menuObjPointer[entryKey].hasOwnProperty("message")) {
 				this.sendNotification(this.menuObjPointer[entryKey]["topic"], this.menuObjPointer[entryKey]["message"]);
-				//console.log(this.menuObjPointer[entryKey]["topic"], this.menuObjPointer[entryKey]["message"]);
+				//console.debug(this.menuObjPointer[entryKey]["topic"], this.menuObjPointer[entryKey]["message"]);
 			}
 			// Publish menu interaction
 			this.sendNotification("MENU_SELECTED", entryKey);
 			//console.debug("MENU_SELECTED: " + entryKey);
 		}
-		// Flash hovered menu tile
-		this.blinkMenuElement(this.hoveredTile);
+		// Flash hovered menu entry
+		this.blinkMenuElement(this.hoveredEntry);
 
 		// Remove menu hover
 		this.hoveredEntryKey = undefined;
@@ -333,6 +509,9 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	 * @param {Int16} distance Distance from the camera in mm.
 	 */
 	updateCursor: function (posx, posy, distance) {
+		this.cursorPosX = Math.round(posx * this.config.image_width);
+		this.cursorPosY = Math.round(posy * this.config.image_height);
+		// console.debug("cursor: X: ", this.cursorPosX, " Y: ", this.cursorPosY)
 		if (this.animationInProgress) return;
 		// Set last menu entry
 		this.hoveredEntryKeyLast = this.hoveredEntryKey;
@@ -341,22 +520,38 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 		// Set cursor distance
 		this.cursorDistance = distance;
 
-		// Hovering over entry
-		if (this.hoveredEntryKey) {
+		// Hovering over menu entry
+		if (this.hoveredEntry && this.hoveredEntryKey) {
 			// Hovering over new entry
 			if (this.hoveredEntryKey != this.hoveredEntryKeyLast) {
 				// console.debug("New hover: " + this.hoveredEntryKey);
 				// Set starting distance for virtual button push
 				this.cursorDistancePushStart = distance;
+
+				// Update radial menu value
+				if (this.radialMenuShown) {
+					// Set selected radial menu index from element id string
+					const hoveredEntryTokens = this.hoveredEntryKey.split('-');
+					if (hoveredEntryTokens.length > 1) {
+						this.radialMenuIndex = hoveredEntryTokens.at(-1);
+					} else {
+						if (this.radialMenuIndex == undefined) {
+							this.radialMenuIndex = 0;
+						}
+					}
+					// Set radial menu value
+					this.radialMenuValue = Math.floor(this.radialMenuValueMin + (this.radialMenuIndex * (this.radialMenuValueMax - this.radialMenuValueMin) / (this.radialMenuNumEntries - 1)));
+				}
+
 				this.updateDom();
-				this.hoverMenuElement(this.hoveredTile);
+				this.hoverMenuElement(this.hoveredEntry);
 			}
 			// Hovering over same valid entry as before
 			else {
 				// Reset starting distance for virtual button push if distance increases
 				if (this.cursorDistance >= (this.cursorDistancePushStart + this.config.distanceButtonPushReset)) {
 						this.cursorDistancePushStart = this.cursorDistance;
-						console.debug("Reset cursorDistancePushStart: " + this.cursorDistancePushStart);
+						// console.debug("Reset cursorDistancePushStart: " + this.cursorDistancePushStart);
 				}
 				// Check if menu entry is clicked with virtual button
 				var remainingPushDistance = this.cursorDistance - (this.cursorDistancePushStart - this.config.distanceButtonPush);
@@ -369,7 +564,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 				else {
 					// console.debug("Remaining distance: " + remainingPushDistance);
 				}
-				this.hoverMenuElement(this.hoveredTile);
+				this.hoverMenuElement(this.hoveredEntry);
 			}
 		}
 		// Not hovering over entry
@@ -400,5 +595,46 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			this.hoveredEntryKeyLast = undefined;
 			this.updateDom();
 		}
+	},
+
+	/**
+	 * Draw circle sector as HTML SVG path element.
+	 * @param {*} id Id of the HTML element
+	 * @param {*} cx Circle center X coordinate
+	 * @param {*} cy Circle center Y coordinate
+	 * @param {*} innerRadius Inner radius of circle sector
+	 * @param {*} outerRadius Outer radius of circle sector
+	 * @param {*} startAngle Start angle in degrees
+	 * @param {*} endAngle End angle in degrees
+	 * @returns Sector as HTML SVG path element 
+	 */
+	drawCircleSectorPath: function (id, cx, cy, innerRadius, outerRadius, startAngle, endAngle) {
+		// Calculate the starting and ending points of the arc on the inner and outer circles
+		const x1Inner = cx + innerRadius * Math.cos(startAngle * Math.PI / 180);
+		const y1Inner = cy + innerRadius * Math.sin(startAngle * Math.PI / 180);
+		const x1Outer = cx + outerRadius * Math.cos(startAngle * Math.PI / 180);
+		const y1Outer = cy + outerRadius * Math.sin(startAngle * Math.PI / 180);
+		const x2Inner = cx + innerRadius * Math.cos(endAngle * Math.PI / 180);
+		const y2Inner = cy + innerRadius * Math.sin(endAngle * Math.PI / 180);
+		const x2Outer = cx + outerRadius * Math.cos(endAngle * Math.PI / 180);
+		const y2Outer = cy + outerRadius * Math.sin(endAngle * Math.PI / 180);
+
+		// Define the path for the circle sector
+		const pathData = `M ${x1Inner},${y1Inner}
+						A ${innerRadius},${innerRadius} 0 0,1 ${x2Inner},${y2Inner}
+						L ${x2Outer},${y2Outer}
+						A ${outerRadius},${outerRadius} 0 0,0 ${x1Outer},${y1Outer}
+						Z`;
+		
+		// Create a new path element for the circle sector
+		const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+
+		// Set html element id
+		path.id = id;
+
+		// Set the "d" attribute of the path element to create the circle sector
+		path.setAttribute('d', pathData);
+
+		return path;
 	},
 });
