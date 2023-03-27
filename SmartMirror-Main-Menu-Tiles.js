@@ -19,7 +19,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 				smarthome: { title: "Smart Home", icon: "fa fa-home" },
 				preferences: { title: "Preferences", icon: "fa fa-cogs" },
 				// Example of a menu entry which shows a radial menu for integer user input and sends result as string to the given topic
-				// inputexample: { title: "Input Example", icon: "fa fa-wrench", input: { topic: "SHOW_ALERT", min: 0, max: 100, steps: 8 } },
+				// integerinput: { title: "Integer Input", icon: "fa fa-dot-circle", input: { type: "integer", topic: "SHOW_ALERT", value: 10, min: 0, max: 100, steps: 8 } },
 			},
 			camera: {
 				//image: { title: "Toggle Camera Image", icon: "fa fa-eye" },
@@ -96,14 +96,6 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 
 		tileHoverDistanceFeedback: 'bar', // Type of hover distance feedback: 'bar' or 'radial'
 	},
-	menuObjPointer: 0, // Pointer to the current menu object
-	selectedEntryKey: undefined, // Selected menu entry string
-	hoveredEntryKey: undefined, // Current selected menu entry as string (undefined for no selection)
-	hoveredEntryKeyLast: undefined, // Last selected menu entry as string (undefined for no selection)
-	cursorDistance: -1, // Current cursor distance in mm
-	cursorDistancePushStart: -1, // Push starting distance in mm
-	hoveredEntry: undefined, // Hovered menu HTML element
-	animationInProgress: false, // Bool for preventing cursor update if tile animation is still in progress
 
 	// Colors
 	menuColor: 'rgb(0, 0, 0)', // Menu element color
@@ -119,15 +111,25 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	radialMenuValueMin: 10, // Minimum value of radial menu input
 	radialMenuValueMax: 100, // Maximum value of radial menu input
 	// Global variables
+	menuObjPointer: 0, // Pointer to the current menu object
+	selectedEntryKey: undefined, // Selected menu entry string
+	hoveredEntryKey: undefined, // Current selected menu entry as string (undefined for no selection)
+	hoveredEntryKeyLast: undefined, // Last selected menu entry as string (undefined for no selection)
+	cursorDistance: -1, // Current cursor distance in mm
+	cursorDistancePushStart: -1, // Push starting distance in mm
+	hoveredEntry: undefined, // Hovered menu HTML element
+	animationInProgress: false, // Bool for preventing cursor update if tile animation is still in progress
 	wrapper: undefined, // Handle for HTML wrapper object
-	radialMenuShown: false, // Bool for usage of the radial menu
 	cursorPosX: undefined, // Current X coordinate of cursor
 	cursorPosY: undefined, // Current Y coordinate of cursor
+	radialMenuShown: false, // Show radial input menu
 	radialMenuPosX: undefined, // Current X coordinate of radial menu
 	radialMenuPosY: undefined, // Current Y coordinate of radial menu
 	radialMenuIndex: undefined, // Current radial menu item index
 	radialMenuValue: undefined, // Current radial menu item value
+	radialMenuCenterValue: undefined, // Current radial menu center value
 	radialMenuParent: undefined, // Parent element which called radial menu
+	keyboardShown: false, // Show screen keyboard
 
 	/**
 	 * Requests any additional stylesheets that need to be loaded.
@@ -209,8 +211,8 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 		table.appendChild(tbody);
 		wrapper.appendChild(table);
 
+		// Radial input menu
 		if (this.radialMenuShown) {
-			// Develop radial context menu
 			var radialMenu = document.createElement("div");
 			const radialMenuDiameter = this.radialMenuRadius * 2;
 			const radialMenuWidth = radialMenuDiameter + this.radialMenuLineWidth;
@@ -265,7 +267,20 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 				path.classList.add('radialMenuItem');
 				// Append circle sector path to svg element
 				radialSvg.appendChild(path);
-
+				// Sector label
+				const labelValue = Math.floor(this.radialMenuValueMin + (secIdx * (this.radialMenuValueMax - this.radialMenuValueMin) / (this.radialMenuNumEntries - 1)));
+				const labelOuterMargin = Math.floor((outerRadius - innerRadius) / 3);
+				const labelX = cx + (outerRadius - labelOuterMargin) * Math.cos((startAngle + (endAngle - startAngle) / 2) * Math.PI / 180);
+				const labelY = cy + (outerRadius - labelOuterMargin) * Math.sin((startAngle + (endAngle - startAngle) / 2) * Math.PI / 180);
+				const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+				labelText.setAttribute('x', labelX);
+				labelText.setAttribute('y', labelY);
+				labelText.setAttribute('text-anchor', 'middle');
+				labelText.setAttribute('dominant-baseline', 'central');
+				labelText.setAttribute('font-size', (this.config.font_size - 10).toString());
+				labelText.setAttribute('fill', 'white');
+				labelText.textContent = labelValue.toString();
+				radialSvg.appendChild(labelText);
 				// Hovered element handle
 				if (path.id == this.hoveredEntryKey) {
 					this.hoveredEntry = path;
@@ -273,29 +288,50 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			}
 			// Print text at center of the circle
 			// Create a new text element for the number
-			const radialText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+			const radialCenterText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
 			// Set the attributes of the text element
-			radialText.setAttribute('x', cx);
-			radialText.setAttribute('y', cy);
-			radialText.setAttribute('text-anchor', 'middle');
-			radialText.setAttribute('dominant-baseline', 'central');
-			radialText.setAttribute('font-size', '20');
-			radialText.setAttribute('fill', 'white');
+			radialCenterText.setAttribute('x', cx);
+			radialCenterText.setAttribute('y', cy);
+			radialCenterText.setAttribute('text-anchor', 'middle');
+			radialCenterText.setAttribute('dominant-baseline', 'central');
+			radialCenterText.setAttribute('font-size', '20');
+			radialCenterText.setAttribute('fill', 'white');
 			// Set the text content of the text element to the number you want to display
 			if (this.radialMenuValue != undefined) {
-				// const number = 42;
-				const number = this.radialMenuValue;
-				radialText.textContent = number.toString();
+				// const radialMenuCenterValue = this.radialMenuValue;
+				const radialMenuCenterValue = this.radialMenuCenterValue;
+				radialCenterText.textContent = radialMenuCenterValue.toString();
 			}
 			// Add the text element to the SVG element
-			radialSvg.appendChild(radialText);
+			radialSvg.appendChild(radialCenterText);
 
 			radialMenu.appendChild(radialSvg);
 			wrapper.appendChild(radialMenu);
 		}
 
+		// Screen keyboard
+		if (this.keyboardShown) {
+
+		}
+
 		this.wrapper = wrapper;
 		return wrapper;
+	},
+
+	/**
+	 * Called when menu gets hidden.
+	 */
+	suspend: function () {
+		// console.debug("Hide menu");
+		this.radialMenuShown = false;
+		this.updateDom();
+	},
+
+	/**
+	 * Called when menu gets shown.
+	 */
+	resume: function () {
+		// console.debug("Show menu");
 	},
 
 	/**
@@ -433,23 +469,28 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 		// console.debug("this.menuObjPointer.id = ", this.menuObjPointer.id);
 		if (this.menuObjPointer.hasOwnProperty(entryKey)) {
 			// Input menu element selected
-			if (this.menuObjPointer[entryKey].hasOwnProperty("input")) {
-				// Show radial input menu
-				if ((!this.radialMenuShown) && (!this.radialMenuPoxX) && (!this.radialMenuPoxY)) {
-					// Set radial menu parent which called for the input menu
-					this.radialMenuParent = this.menuObjPointer[entryKey];
-					// Set radial menu min, max values and number of items
-					this.radialMenuValueMin = this.radialMenuParent['input']['min'];
-					this.radialMenuValueMax = this.radialMenuParent['input']['max'];
-					this.radialMenuNumEntries = this.radialMenuParent['input']['steps'];
-					const wrapperRect = this.wrapper.getBoundingClientRect();
-					// console.debug("wrapperRect: top: ", wrapperRect.top, " left: ", wrapperRect.left);
-					this.radialMenuPosX = this.cursorPosX - wrapperRect.left;
-					this.radialMenuPosY = this.cursorPosY - wrapperRect.top;
-					this.radialMenuShown = true;
+			if (this.menuObjPointer[entryKey].hasOwnProperty('input')) {
+				if (this.menuObjPointer[entryKey]['input'].hasOwnProperty('type')) {
+					// Show radial input menu
+					if (this.menuObjPointer[entryKey]['input']['type'] === 'integer') {
+						if ((!this.radialMenuShown) && (!this.radialMenuPoxX) && (!this.radialMenuPoxY)) {
+							// Set radial menu parent which called for the input menu
+							this.radialMenuParent = this.menuObjPointer[entryKey];
+							// Set radial menu min, max values and number of items
+							this.radialMenuValueMin = this.radialMenuParent['input']['min'];
+							this.radialMenuValueMax = this.radialMenuParent['input']['max'];
+							this.radialMenuNumEntries = this.radialMenuParent['input']['steps'];
+							const wrapperRect = this.wrapper.getBoundingClientRect();
+							// console.debug("wrapperRect: top: ", wrapperRect.top, " left: ", wrapperRect.left);
+							this.radialMenuPosX = this.cursorPosX - wrapperRect.left;
+							this.radialMenuPosY = this.cursorPosY - wrapperRect.top;
+							this.radialMenuCenterValue = this.radialMenuParent['input']['value'];
+							this.radialMenuShown = true;
+						}
+						this.blinkMenuElement(this.hoveredEntry);
+						return;
+					}
 				}
-				this.blinkMenuElement(this.hoveredEntry);
-				return;
 			}
 		} else {
 			// console.debug("Unknown selection entry key: ", entryKey);
@@ -461,6 +502,9 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			const inputTopic = this.radialMenuParent['input']['topic'];
 			const inputValue = this.radialMenuValue.toString();
 			// console.debug("send input: topic: ", inputTopic, " value:", inputValue);
+			this.radialMenuParent['input']['value'] = this.radialMenuValue;
+			this.radialMenuCenterValue = this.radialMenuValue;
+			this.updateDom();
 			if (inputTopic === 'SHOW_ALERT') {
 				this.sendNotification(inputTopic, {type: "notification", title: "Input value: ", message: inputValue});
 			} else {
