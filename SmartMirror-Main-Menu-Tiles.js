@@ -20,6 +20,8 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 				preferences: { title: "Preferences", icon: "fa fa-cogs" },
 				// Example of a menu entry which shows a radial menu for integer user input and sends result as string to the given topic
 				// integerinput: { title: "Integer Input", icon: "fa fa-dot-circle", input: { type: "integer", topic: "SHOW_ALERT", value: 10, min: 0, max: 100, steps: 8 } },
+				// Example of a menu entry which uses a screen keyboard for string user input and sends the resulting string to the given topic
+				// stringinput: { title: "String Input", icon: "fa fa-keyboard", input: { type: "string", topic: "SHOW_ALERT" } },
 			},
 			camera: {
 				//image: { title: "Toggle Camera Image", icon: "fa fa-eye" },
@@ -83,7 +85,6 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			},
 		},
 
-		tiles: true, // Menu as tiles or as list
 		columns: 3, // Number of tile columns
 		image_width: 1920, // Width of the underlying image
 		image_height: 1080, // Height of the underlying image
@@ -99,10 +100,12 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 
 	// Colors
 	menuColor: 'rgb(0, 0, 0)', // Menu element color
+	menuBorderColor: 'rgb(255, 255, 255)', // Menu element border color
 	hoverColor: 'rgb(63, 63, 63)', // Color of hovered element
 	hoverDistanceColor: 'rgb(230, 230, 230)', // Color of distance feedback
 	blinkColor: 'rgb(230, 230, 230)', // Color of selected element blink feedback
 	// Constants
+	keyboardBorderWidth: 4, // Screen keyboard border width
 	gradientWidth: 10, // Width of background gradient transition
 	radialMenuInnerRadius: 30, // Inner radius of radial menu
 	radialMenuRadius: 150, // Outer radius of radial menu
@@ -130,13 +133,78 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	radialMenuCenterValue: undefined, // Current radial menu center value
 	radialMenuParent: undefined, // Parent element which called radial menu
 	keyboardShown: false, // Show screen keyboard
+	keyboardString: '', // Current keyboard input string
+	keyboardStringFinal: undefined, // Final keyboard input string
+	keyboardShifted: true, // Flag indicating keyboard shift key press
+	keyboardCapsLocked: false, // Flag indicating keyboard caps lock
+	// Keyboard layout
+	keyboardLayout: {
+		default: [
+			"{escape} q w e r t y u i o p",
+			"{capslock} a s d f g h j k l {enter}",
+			"{shift} z x c v b n m {space} {backspace}"
+		],
+		shifted: [
+			"{escape} Q W E R T Y U I O P",
+			"{capslock} A S D F G H J K L {enter}",
+			"{shift} Z X C V B N M {space} {backspace}"
+		],
+		extended: [
+			"{escape} {f1} {f2} {f3} {f4} {f5} {f6} {f7} {f8} {f9} {f10} {f11} {f12}",
+			"` 1 2 3 4 5 6 7 8 9 0 - = {backspace}",
+			"{tab} q w e r t y u i o p [ ] \\",
+			"{capslock} a s d f g h j k l ; ' {enter}",
+			"{shiftleft} z x c v b n m , . / {shiftright}",
+			"{controlleft} {altleft} {metaleft} {space} {metaright} {altright}"
+		],
+		extendedShifted: [
+			"{escape} {f1} {f2} {f3} {f4} {f5} {f6} {f7} {f8} {f9} {f10} {f11} {f12}",
+			"~ ! @ # $ % ^ & * ( ) _ + {backspace}",
+			"{tab} Q W E R T Y U I O P { } |",
+			'{capslock} A S D F G H J K L : " {enter}',
+			"{shiftleft} Z X C V B N M < > ? {shiftright}",
+			"{controlleft} {altleft} {metaleft} {space} {metaright} {altright}"
+		]
+	},
+	keyboardIcons: {
+		"{escape}": "escape ⎋",
+		"{tab}": "tab ⇥",
+		"{backspace}": "backspace ⌫",
+		"{enter}": "enter ↵",
+		"{capslock}": "capslock ⇪",
+		"{shift}": "shift ⇧",
+		"{shiftleft}": "shift ⇧",
+		"{shiftright}": "shift ⇧",
+		"{controlleft}": "ctrl ⌃",
+		"{controlright}": "ctrl ⌃",
+		"{altleft}": "alt ⌥",
+		"{altright}": "alt ⌥",
+		"{metaleft}": "cmd ⌘",
+		"{metaright}": "cmd ⌘",
+		"{space}": "space ␣"
+	},
 
+	/**
+	 * Requests any additional scripts that need to be loaded.
+	 * @returns {Array} Additional script filenames as array of strings.
+	 */
+	getScripts: function() {
+		return [
+			// 'Screen-Keyboard.js', // On screen keyboard script
+			// this.file('anotherfile.js'), // This file will be loaded straight from the module folder
+		]
+	},	
+	
 	/**
 	 * Requests any additional stylesheets that need to be loaded.
 	 * @return {Array} Additional style sheet filenames as array of strings.
 	 */
 	getStyles() {
-		return ["font-awesome.css", "SmartMirror-Main-Menu-Tiles.css"];
+		return [
+			"font-awesome.css",
+			"SmartMirror-Main-Menu-Tiles.css",
+			// "Screen-Keyboard.css",
+		];
 	},
 
 	/**
@@ -225,19 +293,12 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			radialMenu.style.left = `${radialMenuLeft}px`;
 			radialMenu.style.width = `${radialMenuWidth}px`;
 			radialMenu.style.height = `${radialMenuHeight}px`;
-			// radialMenu.style.borderStyle = "dashed";
-			// radialMenu.style.borderWidth = `${this.radialMenuLineWidth}px`;
-			// radialMenu.style.borderColor = "lightgray";
 			radialMenu.id = "radialMenuCenter";
 			radialMenu.classList.add('menuItem');
 			const svgns = "http://www.w3.org/2000/svg";
 			var radialSvg = document.createElementNS(svgns, 'svg');
 			radialSvg.id = "radialSvg";
 			radialSvg.classList.add('radialMenuCenter');
-			// radialSvg.style.borderStyle = "dashed";
-			// radialSvg.style.borderWidth = `${this.radialMenuLineWidth}px`;
-			// radialSvg.style.borderColor = "blue";
-			// radialSvg.style.background = "blue"
 			radialSvg.style.width = `${radialMenuWidth}px`;
 			radialSvg.style.height = `${radialMenuHeight}px`;
 			// Make SVG element circle shaped
@@ -311,7 +372,88 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 
 		// Screen keyboard
 		if (this.keyboardShown) {
-
+			var keyboard = document.createElement("div");
+			const boundingRect = document.body.getBoundingClientRect();
+			const keySize = 70;
+			const keyMargin = 4;
+			const keyboardWidth = 1000;
+			const keyboardHeight = 310;
+			const keyboardLeft = Math.floor((boundingRect.left + boundingRect.width / 2) - (keyboardWidth / 2));
+			const keyboardTop = Math.floor((boundingRect.top + boundingRect.height / 2) - (keyboardHeight / 2));
+			keyboard.style.position = 'absolute';
+			keyboard.style.zIndex = '20';
+			keyboard.style.left = `${keyboardLeft}px`;
+			keyboard.style.top = `${keyboardTop}px`;
+			keyboard.style.width = `${keyboardWidth}px`;
+			keyboard.style.height = `${keyboardHeight}px`;
+			keyboard.id = "keyboard";
+			keyboard.classList.add('menuItem');
+			keyboard.classList.add('keyboard');
+			keyboard.style.border = 'solid';
+			keyboard.style.borderColor = this.menuBorderColor;
+			keyboard.style.borderWidth = `${this.keyboardBorderWidth}px`;
+			keyboard.style.borderRadius = '20px';
+			keyboard.style.background = this.menuColor;
+			keyboard.style.align = 'center';
+			var keyTable = document.createElement("table");
+			keyTable.style.borderSpacing = `${keyMargin}px`;
+			keyTable.style.marginLeft = 'auto';
+			keyTable.style.marginRight = 'auto';
+			keyTable.style.marginTop = 'auto';
+			keyTable.style.marginBottom = 'auto';
+			var keyBody = document.createElement('tbody');
+			var keyboardLayout = this.keyboardLayout['default'];
+			if (this.keyboardShifted || this.keyboardCapsLocked) {
+				keyboardLayout = this.keyboardLayout['shifted'];
+			}
+			// Current input string
+			var stringLabel = document.createElement('label');
+			stringLabel.style.fontSize = 40 + "px";
+			if (this.keyboardString === '') {
+				stringLabel.textContent = 'Enter name';
+			} else {
+				stringLabel.textContent = this.keyboardString;
+			}
+			keyboard.appendChild(stringLabel);
+			// Key layout
+			for (var row = 0; row < keyboardLayout.length; row++) {
+				var tr = document.createElement('tr');
+				const rowKeys = keyboardLayout[row].split(' ');
+				for (var col = 0; col < rowKeys.length; col++) {
+					var td = document.createElement('td');
+					var key = rowKeys[col];
+					if (key.startsWith('{')) {
+						if (key === '{enter}') {
+							td.rowSpan = '2';
+						}
+						const keyboardIcons = this.keyboardIcons[key].split(' ');
+						td.id = 'key-' + keyboardIcons.at(0);
+						key = keyboardIcons.at(-1);
+					} else {
+						td.id = 'key-' + key;
+					}
+					var text = document.createTextNode(key);
+					td.style.width = keySize + "px";
+					td.style.minWidth = keySize + "px";
+					td.style.height = keySize + "px";
+					td.style.fontSize = 40 + "px";
+					td.style.border = 'solid';
+					td.style.borderColor = this.menuBorderColor;
+					td.style.borderWidth = '2px';
+					td.classList.add('key');
+					td.classList.add('menuItem');
+					// Hovered key element handle
+					if (td.id == this.hoveredEntryKey) {
+						this.hoveredEntry = td;
+					}
+					td.appendChild(text);
+					tr.appendChild(td);
+				}
+				keyBody.appendChild(tr);
+			}
+			keyTable.appendChild(keyBody);
+			keyboard.appendChild(keyTable);	
+			wrapper.appendChild(keyboard);	
 		}
 
 		this.wrapper = wrapper;
@@ -322,7 +464,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	 * Called when menu gets hidden.
 	 */
 	suspend: function () {
-		// console.debug("Hide menu");
+		// Close radial menu when widget gets hidden
 		this.radialMenuShown = false;
 		this.updateDom();
 	},
@@ -331,7 +473,6 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 	 * Called when menu gets shown.
 	 */
 	resume: function () {
-		// console.debug("Show menu");
 	},
 
 	/**
@@ -389,11 +530,10 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 		for (var i = 0; i < elements.length; i++) {
 			// console.debug("html elements: ", i)
 			// console.debug("html element id: ", elements[i].id)
-			if (elements[i].classList.contains("menuItem")) {
+			if (elements[i].classList.contains('menuItem')) {
 				// Set selected menu entry object
 				var entryKey = elements[i].id;
 				// console.debug("entryKey = ", entryKey)
-
 				return entryKey;
 			}
 		}
@@ -411,7 +551,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 		var background;
 
 		if (htmlElement.nodeName === 'path') {
-				pushDistancePixel = Math.floor(this.radialMenuInnerRadius + (this.radialMenuRadius - this.radialMenuInnerRadius) * (pushDistancePercent / 100));
+			pushDistancePixel = Math.floor(this.radialMenuInnerRadius + (this.radialMenuRadius - this.radialMenuInnerRadius) * (pushDistancePercent / 100));
 			background = `radial-gradient(circle, ${this.menuColor} ${this.radialMenuInnerRadius}px, ${this.hoverDistanceColor} ${this.radialMenuInnerRadius}px, ${this.hoverDistanceColor} ${pushDistancePixel}px, ${this.hoverColor} ${pushDistancePixel + this.gradientWidth}px)`;
 			// htmlElement.parentElement.style.borderRadius = '50%'; // Make SVG element circle shaped
 			htmlElement.parentElement.style.background = background;
@@ -440,7 +580,6 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			htmlElement = htmlElement.parentElement;
 		}
 
-		// console.debug("blinkMenuElement");
 		this.animationInProgress = true;
 		const blinkIntervalDuration = 150; // ms
 		const blinkDuration = 600; // ms
@@ -471,8 +610,8 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			// Input menu element selected
 			if (this.menuObjPointer[entryKey].hasOwnProperty('input')) {
 				if (this.menuObjPointer[entryKey]['input'].hasOwnProperty('type')) {
-					// Show radial input menu
 					if (this.menuObjPointer[entryKey]['input']['type'] === 'integer') {
+						// Show radial input menu
 						if ((!this.radialMenuShown) && (!this.radialMenuPoxX) && (!this.radialMenuPoxY)) {
 							// Set radial menu parent which called for the input menu
 							this.radialMenuParent = this.menuObjPointer[entryKey];
@@ -488,6 +627,19 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 							this.radialMenuShown = true;
 						}
 						this.blinkMenuElement(this.hoveredEntry);
+						return;
+					} else if (this.menuObjPointer[entryKey]['input']['type'] === 'string') {
+						// Show screen keyboard
+						if (!this.keyboardShown) {
+							// console.debug("Show screen keyboard");
+							this.keyboardMenuParent = this.menuObjPointer[entryKey];
+							this.keyboardShown = true;
+						}
+						// Flash hovered menu entry
+						this.blinkMenuElement(this.hoveredEntry);
+						// Remove menu hover
+						this.hoveredEntryKey = undefined;
+						this.hoveredEntryKeyLast = undefined;
 						return;
 					}
 				}
@@ -510,14 +662,57 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			} else {
 				this.sendNotification(inputTopic, inputValue);
 			}
-
 			// Flash hovered menu item
 			this.blinkMenuElement(this.hoveredEntry);
-
 			// Remove menu hover
 			this.hoveredEntryKey = undefined;
 			this.hoveredEntryKeyLast = undefined;
 			this.radialMenuShown = false;
+			return;
+		}
+
+		// Screen keyboard key selected
+		if (entryKey.startsWith('key-')) {
+			// console.debug("Key selected: ", entryKey);
+			if (entryKey === 'key-enter') {
+				this.keyboardString.trim();
+				this.keyboardStringFinal = this.keyboardString;
+				this.keyboardShown = false;
+				// console.debug("String input: ", this.keyboardStringFinal);
+				const inputTopic = this.keyboardMenuParent['input']['topic'];
+				const inputString = this.keyboardStringFinal;
+				if (inputTopic === 'SHOW_ALERT') {
+					this.sendNotification(inputTopic, {type: "notification", title: "Input string: ", message: inputString});
+				} else {
+					this.sendNotification(inputTopic, inputString);
+				}
+				// Flash hovered menu item
+				this.blinkMenuElement(this.hoveredEntry);
+				// Remove menu hover
+				this.hoveredEntryKey = undefined;
+				this.hoveredEntryKeyLast = undefined;
+				this.keyboardString = '';
+				return;
+			} else if (entryKey === 'key-shift') {
+				this.keyboardShifted = !this.keyboardShifted;
+			} else if (entryKey === 'key-capslock') {
+				this.keyboardCapsLocked = !this.keyboardCapsLocked;
+			} else if (entryKey === 'key-backspace') {
+				this.keyboardString = this.keyboardString.slice(0, -1);
+			}	else if (entryKey === 'key-space') {
+				this.keyboardString += ' ';
+			}	else if (entryKey === 'key-escape') {
+				this.keyboardString = '';
+				this.keyboardShifted = false;
+				this.keyboardShown = false;
+			} else {
+				this.keyboardString += entryKey.at(-1);
+				this.keyboardShifted = false;
+			}
+			// Remove menu hover
+			this.hoveredEntryKey = undefined;
+			this.hoveredEntryKeyLast = undefined;
+			this.updateDom();
 			return;
 		}
 
@@ -528,11 +723,8 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			this.menuObjPointer = this.config.menuObj[entryKey];
 			this.selectedEntryKey = entryKey;
 		} else {
-			//console.debug(entryKey)
-			//console.debug(this.menuObjPointer[entryKey])
 			if (this.menuObjPointer[entryKey].hasOwnProperty("topic") && this.menuObjPointer[entryKey].hasOwnProperty("message")) {
 				this.sendNotification(this.menuObjPointer[entryKey]["topic"], this.menuObjPointer[entryKey]["message"]);
-				//console.debug(this.menuObjPointer[entryKey]["topic"], this.menuObjPointer[entryKey]["message"]);
 			}
 			// Publish menu interaction
 			this.sendNotification("MENU_SELECTED", entryKey);
