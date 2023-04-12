@@ -2,9 +2,11 @@
 
 /* Menu tiles */
 
+/*
 .region.middle.center {
   z-index: 100;
 }
+*/
 
 .tile {
 	overflow-x: hidden;
@@ -173,3 +175,4 @@
 	}
 }
 */
+
