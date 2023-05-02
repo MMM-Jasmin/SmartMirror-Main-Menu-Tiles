@@ -74,9 +74,9 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 				back: { title: "Back", icon: "fa fa-undo" },
 			},
 			preferences: {
-				user: { title: "Addjust user settings", icon: "fa fa-user" },
 				face: { title: "Face recognition settings", icon: "fa fa-user-circle" },
 				Decision_maker:{title: "Show debug Info", icon: "fa fa-list" },
+				saveView: { title: "Save current view", icon: "fa fa-user" },
 				back: { title: "Back", icon: "fa fa-undo" },
 			},
 			user_settings: {
