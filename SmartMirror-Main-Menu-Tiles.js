@@ -16,7 +16,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 				utilities: { title: "Utilities", icon: "fa fa-clone" },
 				campus: { title: "Campus Area", icon: "fa fa-university" },
 				entertainment: { title: "Entertainment", icon: "fa fa-star" },
-				//smarthome: { title: "Smart Home", icon: "fa fa-home" },
+				smarthome: { title: "Smart Home", icon: "fa fa-home" },
 				preferences: { title: "Preferences", icon: "fa fa-cogs" },
 				// Example of a menu entry which shows a radial menu for integer user input and sends result as string to the given topic
 				// integerinput: { title: "Integer Input", icon: "fa fa-dot-circle", input: { type: "integer", topic: "SHOW_ALERT", value: 10, min: 0, max: 100, steps: 8 } },
@@ -38,6 +38,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 				clock: { title: "Clock", icon: "fa fa-clock-o" },
 				calendar: { title: "Calendar", icon: "fa fa-calendar" },
 				weather: { title: "Current Weather", icon: "fa fa-cloud" },
+				rain_map: { title: "Rain Radar", icon: "fa fa-cloud-rain" },
 				//bivital: { title: "Vital Data", icon: "fa fa-heartbeat" },
 				//speech: { title: "Speech Recogn. Output", icon: "fa fa-comment" },
 				back: { title: "Back", icon: "fa fa-undo" },
@@ -63,6 +64,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			},
 			smarthome: {
 				coffee: { title: "Coffee Machine", icon: "fa fa-coffee" },
+				office_temp:  { title: "Office Sensors", icon: "fa fa-temperature-half" },
 				back: { title: "Back", icon: "fa fa-undo" },
 			},
 			coffee: {
