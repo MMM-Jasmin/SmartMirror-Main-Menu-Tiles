@@ -723,9 +723,11 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 		if (entryKey == 'back') {
 			this.menuObjPointer = this.config.menuObj.main;
 			this.selectedEntryKey = 'main';
+			this.sendNotification("/led/action/flash", [255.0, 5.0, 5.0, 255.0]);
 		} else if (this.selectedEntryKey == 'main') {
 			this.menuObjPointer = this.config.menuObj[entryKey];
 			this.selectedEntryKey = entryKey;
+			this.sendNotification("/led/action/flash", [255.0, 255.0, 255.0, 30.0]);
 		} else {
 			if (this.menuObjPointer[entryKey].hasOwnProperty("topic") && this.menuObjPointer[entryKey].hasOwnProperty("message")) {
 				this.sendNotification(this.menuObjPointer[entryKey]["topic"], this.menuObjPointer[entryKey]["message"]);
@@ -733,6 +735,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 			// Publish menu interaction
 			this.sendNotification("MENU_SELECTED", entryKey);
 			//console.debug("MENU_SELECTED: " + entryKey);
+			this.sendNotification("/led/action/flash", [5.0, 255.0, 5.0, 30.0]);
 		}
 		// Flash hovered menu entry
 		this.blinkMenuElement(this.hoveredEntry);
@@ -740,6 +743,7 @@ Module.register("SmartMirror-Main-Menu-Tiles", {
 		// Remove menu hover
 		this.hoveredEntryKey = undefined;
 		this.hoveredEntryKeyLast = undefined;
+		
 	},
 
 	/**
